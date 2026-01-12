@@ -1,0 +1,14 @@
+
+# --- Node.js ---
+node_modules/
+dist/
+.env
+
+# --- Rust ---
+/target
+**/*.rs.bk
+Cargo.lock
+
+# --- OS/Misc ---
+.DS_Store
+.vscode/
