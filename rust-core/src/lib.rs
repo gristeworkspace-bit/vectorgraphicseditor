@@ -28,6 +28,10 @@ pub struct Editor {
     selected_ids: HashSet<String>,
     drag_state: DragState,
     pen_state: PenState,
+    // History for undo/redo
+    undo_stack: Vec<SceneGraph>,
+    redo_stack: Vec<SceneGraph>,
+    max_history: usize,
 }
 
 #[wasm_bindgen]
@@ -43,6 +47,9 @@ impl Editor {
             selected_ids: HashSet::new(),
             drag_state: DragState::new(),
             pen_state: PenState::new(),
+            undo_stack: Vec::new(),
+            redo_stack: Vec::new(),
+            max_history: 50, // Keep up to 50 undo states
         }
     }
 
@@ -245,6 +252,118 @@ impl Editor {
             return self.scene.send_to_back(&id);
         }
         false
+    }
+
+    // ==============================================
+    // Persistence APIs (Save/Load)
+    // ==============================================
+
+    /// Export the entire scene to a JSON string
+    pub fn export_scene_to_json(&self) -> String {
+        serde_json::to_string_pretty(&self.scene).unwrap_or_else(|_| "{}".to_string())
+    }
+
+    /// Import a scene from a JSON string, replacing the current scene
+    /// Returns true if successful, false if parsing failed
+    pub fn import_scene_from_json(&mut self, json: &str) -> bool {
+        match serde_json::from_str::<SceneGraph>(json) {
+            Ok(scene) => {
+                self.scene = scene;
+                self.selected_ids.clear();
+                self.drag_state.end();
+                self.pen_state = PenState::Idle;
+                true
+            }
+            Err(_) => false,
+        }
+    }
+
+    /// Clear the entire scene
+    pub fn clear_scene(&mut self) {
+        self.scene = SceneGraph::new();
+        self.selected_ids.clear();
+        self.drag_state.end();
+        self.pen_state = PenState::Idle;
+    }
+
+    /// Export the scene to SVG format
+    pub fn export_to_svg(&self, width: u32, height: u32) -> String {
+        crate::renderer::generate_svg(&self.scene, width, height)
+    }
+
+    // ==============================================
+    // Undo/Redo APIs
+    // ==============================================
+
+    /// Save a snapshot of the current scene for undo
+    /// Call this BEFORE making a destructive change
+    pub fn save_snapshot(&mut self) {
+        // Clone current scene and push to undo stack
+        self.undo_stack.push(self.scene.clone());
+        
+        // Clear redo stack when new action is performed
+        self.redo_stack.clear();
+        
+        // Limit history size
+        while self.undo_stack.len() > self.max_history {
+            self.undo_stack.remove(0);
+        }
+    }
+
+    /// Undo the last operation
+    /// Returns true if undo was performed, false if nothing to undo
+    pub fn undo(&mut self) -> bool {
+        if let Some(previous_scene) = self.undo_stack.pop() {
+            // Save current state to redo stack
+            self.redo_stack.push(self.scene.clone());
+            
+            // Restore previous state
+            self.scene = previous_scene;
+            self.selected_ids.clear();
+            self.drag_state.end();
+            
+            true
+        } else {
+            false
+        }
+    }
+
+    /// Redo the last undone operation
+    /// Returns true if redo was performed, false if nothing to redo
+    pub fn redo(&mut self) -> bool {
+        if let Some(next_scene) = self.redo_stack.pop() {
+            // Save current state to undo stack
+            self.undo_stack.push(self.scene.clone());
+            
+            // Restore next state
+            self.scene = next_scene;
+            self.selected_ids.clear();
+            self.drag_state.end();
+            
+            true
+        } else {
+            false
+        }
+    }
+
+    /// Check if undo is available
+    pub fn can_undo(&self) -> bool {
+        !self.undo_stack.is_empty()
+    }
+
+    /// Check if redo is available
+    pub fn can_redo(&self) -> bool {
+        !self.redo_stack.is_empty()
+    }
+
+    /// Get the size of the undo stack
+    pub fn undo_stack_size(&self) -> usize {
+        self.undo_stack.len()
+    }
+
+    /// Get the size of the redo stack
+    pub fn redo_stack_size(&self) -> usize {
+        self.redo_stack.len()
     }
 
     /// Move selected objects by delta

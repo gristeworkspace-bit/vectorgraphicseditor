@@ -375,6 +375,7 @@ export function Canvas() {
                             if (distance <= HANDLE_HIT_RADIUS) {
                                 // Inside handle - start resize drag
                                 console.log('Resize handle:', i);
+                                editor.save_snapshot(); // Save for undo
                                 editor.begin_resize_drag(x, y, i);
                                 setIsDragging(true);
                                 setDragMode('resize');
@@ -383,6 +384,7 @@ export function Canvas() {
                             } else if (distance <= ROTATION_OUTER_RADIUS) {
                                 // Outside handle but in rotation zone
                                 console.log('Rotation zone near handle:', i);
+                                editor.save_snapshot(); // Save for undo
                                 editor.begin_rotate_drag(x, y);
                                 setIsDragging(true);
                                 setDragMode('rotate');
@@ -401,6 +403,7 @@ export function Canvas() {
             if (selectedId) {
                 console.log('Selected:', selectedId);
                 // Begin move drag operation
+                editor.save_snapshot(); // Save for undo
                 editor.begin_move_drag(x, y);
                 setIsDragging(true);
                 setDragMode('move');
@@ -410,9 +413,11 @@ export function Canvas() {
             }
             render();
         } else if (currentTool === 'rectangle') {
+            editor.save_snapshot(); // Save for undo
             editor.add_rectangle(x - 50, y - 30, 100, 60);
             render();
         } else if (currentTool === 'ellipse') {
+            editor.save_snapshot(); // Save for undo
             editor.add_ellipse(x, y, 50, 35);
             render();
         } else if (currentTool === 'pen') {
@@ -420,6 +425,7 @@ export function Canvas() {
             const shouldClose = editor.pen_down(x, y);
             if (shouldClose) {
                 // Close the path
+                editor.save_snapshot(); // Save for undo before creating path
                 const pathId = editor.pen_close();
                 console.log('Path closed:', pathId);
             }

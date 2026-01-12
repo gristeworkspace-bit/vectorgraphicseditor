@@ -158,6 +158,89 @@ pub fn generate_render_commands(scene: &SceneGraph) -> Vec<RenderCommand> {
     commands
 }
 
+/// Generate SVG string from the scene graph
+pub fn generate_svg(scene: &SceneGraph, width: u32, height: u32) -> String {
+    let mut svg = String::new();
+    
+    // SVG header
+    svg.push_str(&format!(
+        r#"<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {} {}" width="{}" height="{}">
+"#,
+        width, height, width, height
+    ));
+    
+    // Background
+    svg.push_str(&format!(
+        "  <rect x=\"0\" y=\"0\" width=\"{}\" height=\"{}\" fill=\"#1e1e1e\"/>\n",
+        width, height
+    ));
+    
+    // Export each object
+    for (object, transform, style) in scene.iter_leaves() {
+        // Build transform attribute
+        let transform_attr = format!(
+            "matrix({},{},{},{},{},{})",
+            transform.a, transform.c, transform.b, transform.d, transform.tx, transform.ty
+        );
+        
+        // Build style attributes
+        let fill = style.fill_color.as_ref()
+            .map(|c| c.clone())
+            .unwrap_or_else(|| "none".to_string());
+        let stroke = style.stroke_color.as_ref()
+            .map(|c| c.clone())
+            .unwrap_or_else(|| "none".to_string());
+        let stroke_width = style.stroke_width;
+        
+        match object {
+            VectorObject::Rectangle { x, y, width, height } => {
+                svg.push_str(&format!(
+                    r#"  <rect x="{}" y="{}" width="{}" height="{}" fill="{}" stroke="{}" stroke-width="{}" transform="{}"/>
+"#,
+                    x, y, width, height, fill, stroke, stroke_width, transform_attr
+                ));
+            }
+            VectorObject::Ellipse { cx, cy, rx, ry } => {
+                svg.push_str(&format!(
+                    r#"  <ellipse cx="{}" cy="{}" rx="{}" ry="{}" fill="{}" stroke="{}" stroke-width="{}" transform="{}"/>
+"#,
+                    cx, cy, rx, ry, fill, stroke, stroke_width, transform_attr
+                ));
+            }
+            VectorObject::Path { commands: path_commands } => {
+                let mut d = String::new();
+                for cmd in path_commands {
+                    match cmd {
+                        crate::core::scene::PathCommand::MoveTo { x, y } => {
+                            d.push_str(&format!("M{},{} ", x, y));
+                        }
+                        crate::core::scene::PathCommand::LineTo { x, y } => {
+                            d.push_str(&format!("L{},{} ", x, y));
+                        }
+                        crate::core::scene::PathCommand::CurveTo { x1, y1, x2, y2, x, y } => {
+                            d.push_str(&format!("C{},{} {},{} {},{} ", x1, y1, x2, y2, x, y));
+                        }
+                        crate::core::scene::PathCommand::ClosePath => {
+                            d.push_str("Z ");
+                        }
+                    }
+                }
+                svg.push_str(&format!(
+                    r#"  <path d="{}" fill="{}" stroke="{}" stroke-width="{}" transform="{}"/>
+"#,
+                    d.trim(), fill, stroke, stroke_width, transform_attr
+                ));
+            }
+        }
+    }
+    
+    // Close SVG
+    svg.push_str("</svg>\n");
+    
+    svg
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

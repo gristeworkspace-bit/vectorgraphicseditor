@@ -75,13 +75,14 @@ impl Default for ObjectStyle {
 }
 
 /// Scene graph - manages all objects in the scene
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SceneGraph {
     /// Root nodes (top-level objects)
     pub roots: Vec<SceneNode>,
     /// Counter for generating unique IDs
     id_counter: u64,
     /// Quick lookup for object transforms (for future spatial indexing)
+    #[serde(skip)]
     transform_cache: HashMap<ObjectId, TransformMatrix>,
 }
 

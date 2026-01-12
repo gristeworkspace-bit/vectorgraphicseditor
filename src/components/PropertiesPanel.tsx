@@ -69,6 +69,7 @@ export function PropertiesPanel() {
     const handleStrokeWidthChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (!editor || !style) return;
         const newWidth = parseFloat(e.target.value) || 1;
+        editor.save_snapshot(); // Save for undo
         editor.update_style(style.fill || 'none', style.stroke || 'none', newWidth);
         setStyle({ ...style, strokeWidth: newWidth });
         triggerRender(); // Force canvas re-render
@@ -77,6 +78,7 @@ export function PropertiesPanel() {
     // Handle bring to front (layer ordering)
     const handleBringToFront = () => {
         if (!editor) return;
+        editor.save_snapshot(); // Save for undo
         editor.bring_to_front();
         triggerRender(); // Force canvas re-render
     };
@@ -84,6 +86,7 @@ export function PropertiesPanel() {
     // Handle send to back (layer ordering)
     const handleSendToBack = () => {
         if (!editor) return;
+        editor.save_snapshot(); // Save for undo
         editor.send_to_back();
         triggerRender(); // Force canvas re-render
     };

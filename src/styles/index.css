@@ -97,6 +97,28 @@ body {
   color: var(--color-text-primary);
 }
 
+.app__header-actions {
+  display: flex;
+  gap: var(--spacing-sm);
+}
+
+.app__header-actions .btn {
+  padding: var(--spacing-xs) var(--spacing-md);
+  font-size: 13px;
+}
+
+.app__header-actions .btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.app__header-divider {
+  width: 1px;
+  height: 24px;
+  background-color: var(--color-border);
+  margin: 0 var(--spacing-xs);
+}
+
 .app__main {
   display: flex;
   flex: 1;
