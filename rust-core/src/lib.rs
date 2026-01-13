@@ -97,7 +97,7 @@ impl Editor {
     pub fn add_path(&mut self, commands_json: &str) -> String {
         let id = self.scene.generate_id();
         let commands: Vec<PathCommand> = serde_json::from_str(commands_json).unwrap_or_default();
-        let path = VectorObject::Path { commands };
+        let path = VectorObject::Path { commands, is_closed: true };
         self.scene.add_object(id.clone(), path, TransformMatrix::identity());
         id
     }
@@ -127,7 +127,7 @@ impl Editor {
             PathCommand::ClosePath,
         ];
         
-        let path = VectorObject::Path { commands };
+        let path = VectorObject::Path { commands, is_closed: true };
         // Position at center
         let transform = TransformMatrix::translate(cx, cy);
         self.scene.add_object(id.clone(), path, transform);
@@ -703,13 +703,35 @@ impl Editor {
         }
     }
 
-    /// Close the current path and add it to the scene
+    /// Close the current path and add it to the scene (is_closed = true)
+    /// Called when user clicks on start point
     pub fn pen_close(&mut self) -> String {
         if let PenState::Drawing { mut commands, .. } = std::mem::take(&mut self.pen_state) {
             commands.push(PathCommand::ClosePath);
             
             let id = self.scene.generate_id();
-            let path = VectorObject::Path { commands };
+            let path = VectorObject::Path { commands, is_closed: true };
+            self.scene.add_object(id.clone(), path, TransformMatrix::identity());
+            
+            self.pen_state = PenState::Idle;
+            return id;
+        }
+        String::new()
+    }
+
+    /// Finish the current path without closing it (is_closed = false)
+    /// Called when user presses Enter key
+    pub fn pen_finish(&mut self) -> String {
+        if let PenState::Drawing { commands, .. } = std::mem::take(&mut self.pen_state) {
+            // Don't add ClosePath command - leave path open
+            if commands.len() < 2 {
+                // Need at least 2 points to make a valid open path
+                self.pen_state = PenState::Idle;
+                return String::new();
+            }
+            
+            let id = self.scene.generate_id();
+            let path = VectorObject::Path { commands, is_closed: false };
             self.scene.add_object(id.clone(), path, TransformMatrix::identity());
             
             self.pen_state = PenState::Idle;
@@ -797,7 +819,7 @@ impl Editor {
     pub fn get_path_points(&self, id: &str) -> String {
         if let Some(node) = self.scene.get_node_by_id(id) {
             if let SceneNode::Leaf { object, transform, .. } = node {
-                if let VectorObject::Path { commands } = object {
+                if let VectorObject::Path { commands, .. } = object {
                     let mut points = Vec::new();
                     
                     for cmd in commands {
@@ -846,7 +868,7 @@ impl Editor {
     pub fn update_path_point(&mut self, id: &str, index: usize, world_x: f64, world_y: f64) {
         if let Some(node) = self.scene.get_node_by_id_mut(id) {
             if let SceneNode::Leaf { object, transform, .. } = node {
-                if let VectorObject::Path { commands } = object {
+                if let VectorObject::Path { commands, .. } = object {
                     // Transform world coords back to local coords
                     if let Some(inverse) = transform.inverse() {
                         let (local_x, local_y) = inverse.transform_point(world_x, world_y);
@@ -920,7 +942,7 @@ impl Editor {
                         VectorObject::Ellipse { cx, cy, rx, ry } => {
                             BoundingBox::from_ellipse(*cx, *cy, *rx, *ry)
                         }
-                        VectorObject::Path { commands } => {
+                        VectorObject::Path { commands, .. } => {
                             // Calculate bounding box from all path points
                             let mut min_x = f64::MAX;
                             let mut min_y = f64::MAX;

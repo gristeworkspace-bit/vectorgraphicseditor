@@ -116,7 +116,7 @@ pub fn generate_render_commands(scene: &SceneGraph) -> Vec<RenderCommand> {
                     ry: *ry,
                 });
             }
-            VectorObject::Path { commands: path_commands } => {
+            VectorObject::Path { commands: path_commands, is_closed } => {
                 for cmd in path_commands {
                     match cmd {
                         crate::core::scene::PathCommand::MoveTo { x, y } => {
@@ -136,7 +136,10 @@ pub fn generate_render_commands(scene: &SceneGraph) -> Vec<RenderCommand> {
                             });
                         }
                         crate::core::scene::PathCommand::ClosePath => {
-                            commands.push(RenderCommand::ClosePath);
+                            // Only add ClosePath if is_closed is true
+                            if *is_closed {
+                                commands.push(RenderCommand::ClosePath);
+                            }
                         }
                     }
                 }
@@ -208,7 +211,7 @@ pub fn generate_svg(scene: &SceneGraph, width: u32, height: u32) -> String {
                     cx, cy, rx, ry, fill, stroke, stroke_width, transform_attr
                 ));
             }
-            VectorObject::Path { commands: path_commands } => {
+            VectorObject::Path { commands: path_commands, is_closed } => {
                 let mut d = String::new();
                 for cmd in path_commands {
                     match cmd {
@@ -222,7 +225,10 @@ pub fn generate_svg(scene: &SceneGraph, width: u32, height: u32) -> String {
                             d.push_str(&format!("C{},{} {},{} {},{} ", x1, y1, x2, y2, x, y));
                         }
                         crate::core::scene::PathCommand::ClosePath => {
-                            d.push_str("Z ");
+                            // Only add Z if is_closed is true
+                            if *is_closed {
+                                d.push_str("Z ");
+                            }
                         }
                     }
                 }

@@ -30,7 +30,8 @@ export function Canvas() {
         setCanvasSize,
         currentTool,
         setSelectedIds,
-        renderVersion
+        renderVersion,
+        triggerRender: storeRender
     } = useEditorStore();
 
     // Drag state
@@ -346,6 +347,40 @@ export function Canvas() {
         }
     }, [isWasmReady, editor, render, canvasWidth, canvasHeight, renderVersion]);
 
+    // Handle Enter key for pen tool - finish open path
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            // Debug: log all key presses
+            console.log('Key pressed:', e.key, 'currentTool:', currentTool);
+
+            if (!editor || !isWasmReady) {
+                console.log('  → Early return: no editor or wasm not ready');
+                return;
+            }
+
+            // Enter key: finish open path when using pen tool
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                e.stopPropagation();
+
+                const isDrawing = editor.is_pen_drawing();
+                console.log('  → Enter pressed, currentTool:', currentTool, 'is_pen_drawing:', isDrawing);
+
+                if (currentTool === 'pen' && isDrawing) {
+                    console.log('  → Finishing open path...');
+                    editor.save_snapshot(); // Save for undo
+                    const pathId = editor.pen_finish();
+                    console.log('  → Open path finished:', pathId);
+                    render();
+                    storeRender();
+                }
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [editor, isWasmReady, currentTool, render, storeRender]);
+
     // Get canvas coordinates from mouse event
     const getCanvasCoords = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
         const canvas = canvasRef.current;
@@ -430,8 +465,11 @@ export function Canvas() {
                 editor.save_snapshot(); // Save for undo before creating path
                 const pathId = editor.pen_close();
                 console.log('Path closed:', pathId);
+                setIsDragging(false); // Path is done, no more dragging
+            } else {
+                // Not closing - start drag for potential curve
+                setIsDragging(true);
             }
-            setIsDragging(true);
             render();
         } else if (currentTool === 'direct_select') {
             // Direct selection: use bounding box hit test (same as select tool)
@@ -450,15 +488,25 @@ export function Canvas() {
 
     // Handle mouse move
     const handleMouseMove = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
-        if (!editor || !isDragging) return;
+        if (!editor) return;
 
         const { x, y } = getCanvasCoords(e);
 
-        if (currentTool === 'pen') {
-            // Pen tool: update drag handle for curve creation
-            editor.pen_move(x, y);
-            render();
-        } else if (editor.has_selection()) {
+        // Pen tool: always update preview/drag handle (even when not isDragging state)
+        if (currentTool === 'pen' && editor.is_pen_drawing()) {
+            // Only call pen_move if we're in the middle of a drag (after mousedown, before mouseup)
+            if (isDragging) {
+                editor.pen_move(x, y);
+                render();
+            }
+            // Note: We could add preview line here if needed, but Rust handles this via get_pen_preview
+            return;
+        }
+
+        // Other tools: only process if dragging
+        if (!isDragging) return;
+
+        if (editor.has_selection()) {
             if (dragMode === 'resize') {
                 editor.update_resize_drag(x, y);
             } else if (dragMode === 'rotate') {

@@ -27,7 +27,16 @@ pub enum VectorObject {
     },
     Path {
         commands: Vec<PathCommand>,
+        /// Whether the path is closed (ends with ClosePath command)
+        /// Default true for backward compatibility with existing save files
+        #[serde(default = "default_true")]
+        is_closed: bool,
     },
+}
+
+/// Default function for is_closed field (backward compatibility)
+fn default_true() -> bool {
+    true
 }
 
 /// SVG-compatible path commands

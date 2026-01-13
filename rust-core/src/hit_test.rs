@@ -82,7 +82,7 @@ pub fn hit_test_object(
         VectorObject::Ellipse { cx, cy, rx, ry } => {
             point_in_ellipse(local_x, local_y, *cx, *cy, *rx, *ry)
         }
-        VectorObject::Path { commands } => {
+        VectorObject::Path { commands, .. } => {
             point_in_path_bounds(local_x, local_y, commands)
         }
     }
