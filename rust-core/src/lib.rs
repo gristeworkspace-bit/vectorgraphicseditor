@@ -12,6 +12,7 @@ pub mod hit_test;
 pub mod pen_state;
 pub mod renderer;
 pub mod spatial;
+pub mod text_engine;
 
 use crate::core::math::TransformMatrix;
 use crate::core::scene::{PathCommand, SceneGraph, SceneNode, VectorObject};
