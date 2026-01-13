@@ -37,6 +37,7 @@ export function Toolbar() {
 
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--spacing-sm)' }}>
                 <ToolButton tool="select" label="Select (V)" icon="↖" />
+                <ToolButton tool="direct_select" label="Direct Select (A)" icon="⇱" />
                 <ToolButton tool="rectangle" label="Rectangle (R)" icon="▢" />
                 <ToolButton tool="ellipse" label="Ellipse (O)" icon="○" />
                 <ToolButton tool="pen" label="Pen (P)" icon="✎" />

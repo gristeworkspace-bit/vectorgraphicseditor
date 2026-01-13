@@ -4,6 +4,7 @@
 
 import { useEffect, useRef, useCallback, useState } from 'react';
 import { useEditorStore } from '../store/editorStore';
+import { DirectSelectOverlay } from './DirectSelectOverlay';
 
 // Type definitions for render commands from Rust
 interface RenderCommand {
@@ -28,6 +29,7 @@ export function Canvas() {
         canvasHeight,
         setCanvasSize,
         currentTool,
+        setSelectedIds,
         renderVersion
     } = useEditorStore();
 
@@ -431,6 +433,16 @@ export function Canvas() {
             }
             setIsDragging(true);
             render();
+        } else if (currentTool === 'direct_select') {
+            // Direct selection: use bounding box hit test (same as select tool)
+            const selectedId = editor.select_at(x, y);
+            if (selectedId) {
+                setSelectedIds([selectedId]);
+                console.log('Direct select:', selectedId);
+            } else {
+                setSelectedIds([]);
+            }
+            render();
         }
 
         triggerRender();
@@ -492,19 +504,22 @@ export function Canvas() {
                     <span>Loading Wasm...</span>
                 </div>
             ) : (
-                <canvas
-                    ref={canvasRef}
-                    width={canvasWidth}
-                    height={canvasHeight}
-                    onMouseDown={handleMouseDown}
-                    onMouseMove={handleMouseMove}
-                    onMouseUp={handleMouseUp}
-                    onMouseLeave={handleMouseUp}
-                    style={{
-                        cursor: getCursor(),
-                        display: 'block'
-                    }}
-                />
+                <>
+                    <canvas
+                        ref={canvasRef}
+                        width={canvasWidth}
+                        height={canvasHeight}
+                        onMouseDown={handleMouseDown}
+                        onMouseMove={handleMouseMove}
+                        onMouseUp={handleMouseUp}
+                        onMouseLeave={handleMouseUp}
+                        style={{
+                            cursor: getCursor(),
+                            display: 'block'
+                        }}
+                    />
+                    <DirectSelectOverlay />
+                </>
             )}
         </div>
     );

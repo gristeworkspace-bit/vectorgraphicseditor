@@ -775,6 +775,121 @@ impl Editor {
             PenState::Idle => "{}".to_string(),
         }
     }
+
+    // ==============================================
+    // Path Editing APIs (Direct Selection Tool)
+    // ==============================================
+
+    /// Check if the first selected object is a Path
+    pub fn selected_is_path(&self) -> bool {
+        if let Some(id) = self.selected_ids.iter().next() {
+            if let Some(node) = self.scene.get_node_by_id(id) {
+                if let SceneNode::Leaf { object, .. } = node {
+                    return matches!(object, VectorObject::Path { .. });
+                }
+            }
+        }
+        false
+    }
+
+    /// Get path points for the specified object as JSON
+    /// Returns: [ { "x": f64, "y": f64, "type": "move"|"line"|"curve" }, ... ]
+    pub fn get_path_points(&self, id: &str) -> String {
+        if let Some(node) = self.scene.get_node_by_id(id) {
+            if let SceneNode::Leaf { object, transform, .. } = node {
+                if let VectorObject::Path { commands } = object {
+                    let mut points = Vec::new();
+                    
+                    for cmd in commands {
+                        match cmd {
+                            PathCommand::MoveTo { x, y } => {
+                                // Transform local coords to world coords
+                                let (wx, wy) = transform.transform_point(*x, *y);
+                                points.push(serde_json::json!({
+                                    "x": wx,
+                                    "y": wy,
+                                    "type": "move"
+                                }));
+                            }
+                            PathCommand::LineTo { x, y } => {
+                                let (wx, wy) = transform.transform_point(*x, *y);
+                                points.push(serde_json::json!({
+                                    "x": wx,
+                                    "y": wy,
+                                    "type": "line"
+                                }));
+                            }
+                            PathCommand::CurveTo { x, y, .. } => {
+                                // For now, just return the endpoint (not control points)
+                                let (wx, wy) = transform.transform_point(*x, *y);
+                                points.push(serde_json::json!({
+                                    "x": wx,
+                                    "y": wy,
+                                    "type": "curve"
+                                }));
+                            }
+                            PathCommand::ClosePath => {
+                                // ClosePath has no coordinates
+                            }
+                        }
+                    }
+                    
+                    return serde_json::to_string(&points).unwrap_or_else(|_| "[]".to_string());
+                }
+            }
+        }
+        "[]".to_string()
+    }
+
+    /// Update a path point at the given index
+    /// Sets the x, y coordinates of the command at position `index`
+    pub fn update_path_point(&mut self, id: &str, index: usize, world_x: f64, world_y: f64) {
+        if let Some(node) = self.scene.get_node_by_id_mut(id) {
+            if let SceneNode::Leaf { object, transform, .. } = node {
+                if let VectorObject::Path { commands } = object {
+                    // Transform world coords back to local coords
+                    if let Some(inverse) = transform.inverse() {
+                        let (local_x, local_y) = inverse.transform_point(world_x, world_y);
+                        
+                        // Find the command at the given index and update it
+                        let mut point_idx = 0;
+                        for cmd in commands.iter_mut() {
+                            match cmd {
+                                PathCommand::MoveTo { x, y } => {
+                                    if point_idx == index {
+                                        *x = local_x;
+                                        *y = local_y;
+                                        return;
+                                    }
+                                    point_idx += 1;
+                                }
+                                PathCommand::LineTo { x, y } => {
+                                    if point_idx == index {
+                                        *x = local_x;
+                                        *y = local_y;
+                                        return;
+                                    }
+                                    point_idx += 1;
+                                }
+                                PathCommand::CurveTo { x, y, .. } => {
+                                    // Only update endpoint, not control points
+                                    if point_idx == index {
+                                        *x = local_x;
+                                        *y = local_y;
+                                        return;
+                                    }
+                                    point_idx += 1;
+                                }
+                                PathCommand::ClosePath => {
+                                    // No coordinates to update
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
 
 // Private helper methods (not exposed to Wasm)

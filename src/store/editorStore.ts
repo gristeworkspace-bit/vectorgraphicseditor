@@ -5,7 +5,7 @@
 import { create } from 'zustand';
 import type { Editor } from '../wasm/wasmLoader';
 
-export type Tool = 'select' | 'rectangle' | 'ellipse' | 'pen';
+export type Tool = 'select' | 'direct_select' | 'rectangle' | 'ellipse' | 'pen';
 
 interface EditorState {
     // Wasm Editor
