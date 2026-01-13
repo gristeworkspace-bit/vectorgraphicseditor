@@ -5,6 +5,7 @@
 import { useEffect, useRef, useCallback, useState } from 'react';
 import { useEditorStore } from '../store/editorStore';
 import { DirectSelectOverlay } from './DirectSelectOverlay';
+import init, { convert_text_to_svg } from '../wasm/pkg/rust_core.js';
 
 // Type definitions for render commands from Rust
 interface RenderCommand {
@@ -38,6 +39,30 @@ export function Canvas() {
     const [isDragging, setIsDragging] = useState(false);
     const [dragMode, setDragMode] = useState<'move' | 'resize' | 'rotate' | null>(null);
     const [, setRenderTrigger] = useState(0);
+    const [wasmTextPath, setWasmTextPath] = useState<string | null>(null);
+
+    // Initialize Wasm and load font
+    useEffect(() => {
+        const initWasm = async () => {
+            try {
+                await init();
+
+                const fontRes = await fetch('/NotoSansJP-VariableFont_wght.ttf');
+                if (!fontRes.ok) throw new Error('Failed to fetch font');
+
+                const fontBuf = await fontRes.arrayBuffer();
+                const fontData = new Uint8Array(fontBuf);
+
+                const pathData = convert_text_to_svg(fontData, "Griste Design");
+                setWasmTextPath(pathData);
+                console.log('Wasm initialized and text converted');
+            } catch (err) {
+                console.error('Error initializing Wasm or converting text:', err);
+            }
+        };
+
+        initWasm();
+    }, []);
 
     // Handle hit detection radii
     const HANDLE_HIT_RADIUS = 12; // Inner radius for resize
@@ -545,7 +570,7 @@ export function Canvas() {
     };
 
     return (
-        <div ref={containerRef} className="app__canvas-container">
+        <div ref={containerRef} className="app__canvas-container" style={{ position: 'relative' }}>
             {!isWasmReady ? (
                 <div className="loading">
                     <div className="loading__spinner" />
@@ -567,6 +592,25 @@ export function Canvas() {
                         }}
                     />
                     <DirectSelectOverlay />
+                    {wasmTextPath && (
+                        <svg
+                            style={{
+                                position: 'absolute',
+                                top: 0,
+                                left: 0,
+                                width: '100%',
+                                height: '100%',
+                                pointerEvents: 'none',
+                                zIndex: 10
+                            }}
+                        >
+                            <path
+                                d={wasmTextPath}
+                                fill="blue"
+                                transform="translate(100, 300) scale(0.1, 0.1)"
+                            />
+                        </svg>
+                    )}
                 </>
             )}
         </div>

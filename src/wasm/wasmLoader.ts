@@ -2,7 +2,7 @@
  * Wasm Loader - Handles loading and initialization of the Rust Wasm module
  */
 
-import init, { Editor } from '../../rust-core/pkg/rust_core';
+import init, { Editor } from './pkg/rust_core';
 
 let wasmInitialized = false;
 let editorInstance: Editor | null = null;
